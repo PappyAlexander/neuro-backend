@@ -30,6 +30,4 @@ async def dashboard():
     records = list(collection.find({}, {"_id": 0}))
     return {"data": records}
 
-fastapi  
-uvicorn  
-pymongo  
+ 
