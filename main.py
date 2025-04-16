@@ -1,3 +1,4 @@
+from fastapi.responses import Response
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
@@ -18,34 +19,21 @@ client = MongoClient(MONGO_URI)
 db = client["neuro"]
 collection = db["impressions"]
 
+ONE_BY_ONE_GIF = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF!' \
+                 b'\xF9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01' \
+                 b'\x00\x00\x02\x02D\x01\x00;'
+
+
 @app.get("/pixel")
 async def pixel(request: Request):
     data = dict(request.query_params)
     data["timestamp"] = datetime.utcnow()
-
-    # ✅ Log extra info
     data["ip"] = request.client.host
     data["referrer"] = request.headers.get("referer")
     data["user_agent"] = request.headers.get("user-agent")
 
-    # ✅ Throttle duplicates (90s per user + creative)
-    last_entry = collection.find_one(
-        {
-            "user_id": data.get("user_id"),
-            "creative_id": data.get("creative_id"),
-        },
-        sort=[("timestamp", -1)]
-    )
-
-    if last_entry:
-        delta = datetime.utcnow() - last_entry["timestamp"]
-        if delta.total_seconds() < 90:
-            return Response(content="", media_type="image/gif")
-
+    # Logging into Mongo
     collection.insert_one(data)
 
-    # Return 1x1 transparent pixel
-    pixel_bytes = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF!' \
-                  b'\xF9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01' \
-                  b'\x00\x00\x02\x02D\x01\x00;'
-    return Response(content=pixel_bytes, media_type="image/gif")
+    # Return 1x1 transparent GIF with correct headers
+    return Response(content=ONE_BY_ONE_GIF, media_type="image/gif")
