@@ -40,12 +40,35 @@ TRANSPARENT_PIXEL = base64.b64decode(
 
 @app.get("/pixel")
 async def pixel(request: Request):
+   from fastapi.responses import Response
+import base64
+from datetime import timedelta
+
+TRANSPARENT_PIXEL = base64.b64decode(
+    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+)
+
+@app.get("/pixel")
+async def pixel(request: Request):
     data = dict(request.query_params)
     data["timestamp"] = datetime.utcnow()
-    collection.insert_one(data)
 
-    return Response(
-        content=TRANSPARENT_PIXEL,
-        media_type="image/gif"
-    )
- 
+    # ✅ Add IP / Referrer / Device info
+    data["ip"] = request.client.host
+    data["referrer"] = request.headers.get("referer")
+    data["user_agent"] = request.headers.get("user-agent")
+
+    # ✅ Throttle same user/creative/campaign combo within 5 mins
+    lookback = datetime.utcnow() - timedelta(minutes=5)
+    existing = collection.find_one({
+        "campaign_id": data.get("campaign_id"),
+        "creative_id": data.get("creative_id"),
+        "user_id": data.get("user_id"),
+        "timestamp": { "$gte": lookback }
+    })
+
+    if not existing:
+        collection.insert_one(data)
+
+    return Response(content=TRANSPARENT_PIXEL, media_type="image/gif")
+
