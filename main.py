@@ -59,7 +59,7 @@ async def pixel(request: Request):
     data["user_agent"] = request.headers.get("user-agent")
 
     # ✅ Throttle same user/creative/campaign combo within 5 mins
-lookback = datetime.utcnow() - timedelta(seconds=90)
+    lookback = datetime.utcnow() - timedelta(seconds=90)
     existing = collection.find_one({
         "campaign_id": data.get("campaign_id"),
         "creative_id": data.get("creative_id"),
