@@ -18,58 +18,34 @@ client = MongoClient(MONGO_URI)
 db = client["neuro"]
 collection = db["impressions"]
 
-@app.get("/track")
-async def track_get(request: Request):
-    data = dict(request.query_params)
-    data["timestamp"] = datetime.utcnow()
-    collection.insert_one(data)
-    return {"status": "logged"}
-
-@app.get("/dashboard-data")
-async def dashboard():
-    records = list(collection.find({}, {"_id": 0}))
-    return {"data": records}
-
-from fastapi.responses import Response
-import base64
-
-# Base64-encoded 1x1 transparent GIF
-TRANSPARENT_PIXEL = base64.b64decode(
-    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-)
-
-@app.get("/pixel")
-async def pixel(request: Request):
-   from fastapi.responses import Response
-import base64
-from datetime import timedelta
-
-TRANSPARENT_PIXEL = base64.b64decode(
-    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-)
-
 @app.get("/pixel")
 async def pixel(request: Request):
     data = dict(request.query_params)
     data["timestamp"] = datetime.utcnow()
 
-    # ✅ Add metadata
+    # ✅ Log extra info
     data["ip"] = request.client.host
     data["referrer"] = request.headers.get("referer")
     data["user_agent"] = request.headers.get("user-agent")
 
+    # ✅ Throttle duplicates (90s per user + creative)
+    last_entry = collection.find_one(
+        {
+            "user_id": data.get("user_id"),
+            "creative_id": data.get("creative_id"),
+        },
+        sort=[("timestamp", -1)]
+    )
 
-    # ✅ Throttle if seen in last 90 seconds
-    lookback = datetime.utcnow() - timedelta(seconds=90)
-    existing = collection.find_one({
-        "campaign_id": data.get("campaign_id"),
-        "creative_id": data.get("creative_id"),
-        "user_id": data.get("user_id"),
-        "timestamp": { "$gte": lookback }
-    })
+    if last_entry:
+        delta = datetime.utcnow() - last_entry["timestamp"]
+        if delta.total_seconds() < 90:
+            return Response(content="", media_type="image/gif")
 
-    if not existing:
-        collection.insert_one(data)
+    collection.insert_one(data)
 
-    return Response(content=TRANSPARENT_PIXEL, media_type="image/gif")
-
+    # Return 1x1 transparent pixel
+    pixel_bytes = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF!' \
+                  b'\xF9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01' \
+                  b'\x00\x00\x02\x02D\x01\x00;'
+    return Response(content=pixel_bytes, media_type="image/gif")
