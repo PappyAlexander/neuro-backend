@@ -53,12 +53,12 @@ async def pixel(request: Request):
     data = dict(request.query_params)
     data["timestamp"] = datetime.utcnow()
 
-    # ✅ Add IP / Referrer / Device info
+    # ✅ Add metadata
     data["ip"] = request.client.host
     data["referrer"] = request.headers.get("referer")
     data["user_agent"] = request.headers.get("user-agent")
 
-    # ✅ Throttle same user/creative/campaign combo within 5 mins
+    # ✅ Throttle if seen in last 90 seconds
     lookback = datetime.utcnow() - timedelta(seconds=90)
     existing = collection.find_one({
         "campaign_id": data.get("campaign_id"),
