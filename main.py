@@ -58,6 +58,7 @@ async def pixel(request: Request):
     data["referrer"] = request.headers.get("referer")
     data["user_agent"] = request.headers.get("user-agent")
 
+
     # ✅ Throttle if seen in last 90 seconds
     lookback = datetime.utcnow() - timedelta(seconds=90)
     existing = collection.find_one({
