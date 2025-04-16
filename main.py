@@ -30,4 +30,22 @@ async def dashboard():
     records = list(collection.find({}, {"_id": 0}))
     return {"data": records}
 
+from fastapi.responses import Response
+import base64
+
+# Base64-encoded 1x1 transparent GIF
+TRANSPARENT_PIXEL = base64.b64decode(
+    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+)
+
+@app.get("/pixel")
+async def pixel(request: Request):
+    data = dict(request.query_params)
+    data["timestamp"] = datetime.utcnow()
+    collection.insert_one(data)
+
+    return Response(
+        content=TRANSPARENT_PIXEL,
+        media_type="image/gif"
+    )
  
