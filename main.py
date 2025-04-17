@@ -37,3 +37,11 @@ async def pixel(request: Request):
 
     # Return 1x1 transparent GIF with correct headers
     return Response(content=ONE_BY_ONE_GIF, media_type="image/gif")
+
+from fastapi.responses import JSONResponse
+
+@app.get("/count")
+async def get_count():
+    count = collection.count_documents({})
+    return JSONResponse(content={"count": count})
+
