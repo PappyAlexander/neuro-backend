@@ -46,12 +46,12 @@ async def get_creative_impressions(campaign_id: str = None):
     return results
 
 @app.get("/latest-impression")
-async def get_latest_timestamp():
-    doc = collection.find().sort("timestamp", -1).limit(1)
-    latest = next(doc, None)
+async def get_latest_impression():
+    latest = await collection.find_one(sort=[("timestamp", -1)])
     if latest:
-        return {"timestamp": latest.get("timestamp")}
-    return {"timestamp": None}
+        return latest
+    return {"message": "No impressions found"}
+
 
 @app.get("/")
 async def root():
