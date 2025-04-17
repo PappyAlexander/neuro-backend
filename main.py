@@ -92,3 +92,14 @@ def get_creative_impressions(
     results = list(collection.aggregate(pipeline))
     return results
 
+from fastapi.responses import JSONResponse
+from datetime import datetime
+
+@app.get("/latest-impression")
+async def latest_impression():
+    doc = await impressions_collection.find_one(sort=[("timestamp", -1)])
+    if not doc:
+        return JSONResponse({"latest": None})
+    return JSONResponse({
+        "latest": doc["timestamp"].isoformat()
+    })
