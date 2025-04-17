@@ -71,3 +71,24 @@ async def get_impressions(
 
     count = collection.count_documents(query)
     return JSONResponse(content={"count": count})
+
+@app.get("/creative-impressions")
+def get_creative_impressions(
+    campaign_id: str = None
+):
+    query = {}
+    if campaign_id:
+        query["campaign_id"] = campaign_id
+
+    pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": "$creative_id",
+            "count": {"$sum": 1}
+        }},
+        {"$sort": {"count": -1}}
+    ]
+
+    results = list(collection.aggregate(pipeline))
+    return results
+
